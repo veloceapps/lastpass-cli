@@ -175,7 +175,12 @@ static void assign_account_value(struct account *account,
 	/* Some other name: value pair -- treat like a new field */
 	editable_field = new0(struct field, 1);
 	editable_field->name = xstrdup(label);
-	editable_field->type = xstrdup("password");
+	
+	if (!strcmp(label, "password") || !strcmp(label, "pw")) {
+	    editable_field->type = xstrdup("password");		
+	} else {
+	    editable_field->type = xstrdup("text");	
+	}
 	field_set_value(account, editable_field, xstrdup(trim(value)), key);
 	list_add_tail(&editable_field->list, &account->field_head);
 
