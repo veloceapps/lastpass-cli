@@ -42,6 +42,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <errno.h>
+#include <unistd.h>
 #include <string.h>
 #include <signal.h>
 #include <openssl/ssl.h>
@@ -331,19 +332,52 @@ char *http_post_lastpass_v_noexit(const char *server, const char *page, const st
 
 char *http_post_lastpass_v(const char *server, const char *page, const struct session *session, size_t *final_len, char **argv)
 {
-	char *result;
+	char *result = NULL;
 	int ret;
 	long http_code;
+	int backoff;
+	int backoff_scale = 8;
 
-	result = http_post_lastpass_v_noexit(server, page, session, final_len,
-					     argv, &ret, &http_code);
+	backoff = 1;
+	for (int i = 0; i < 10; ++i) {
+		if (result != NULL) {
+			free(result);
+    		result = NULL;
+		}
 
+		if (i) {
+			lpass_log(LOG_DEBUG, "LP: attempt %d, sleeping %d seconds\n", i+1, backoff);
+			fprintf(stderr, "SLEEP=%d\n", backoff);
+			sleep(backoff);
+			backoff *= backoff_scale;
+		}
+	    lpass_log(LOG_DEBUG, "LP: posting to %s\n", page);
+
+		result = http_post_lastpass_v_noexit(server, page, session, final_len,
+                 					     argv, &ret, &http_code);
+
+        if (ret != CURLE_OK) {
+            fprintf(stderr, "HTTP_CODE=%ld\n", http_code);
+            if (result) {
+                fprintf(stderr,"RESPONSE_BODY=%s\n", result);
+            }
+	    }
+
+		lpass_log(LOG_DEBUG, "LP: result %d (http_code=%ld)\n", ret, http_code);
+
+		if (http_code == 500) {
+			/* not a rate-limit error; try again with less backoff */
+			backoff_scale = 2;
+		} else {
+			backoff_scale = 8;
+		}
+
+		if (ret == CURLE_OK)
+			break;
+	}
+	//
 	if (ret != CURLE_OK && ret != CURLE_ABORTED_BY_CALLBACK) {
-        fprintf(stderr, "HTTP_CODE=%ld\n", http_code);
-        if (result) {
-            fprintf(stderr, "RESPONSE_BODY=%s\n", result);
-        }
-        die("%s.", curl_easy_strerror(ret));
+        die("HTTP call to https://%s/%s FAILED with code: %ld.", server, page, http_code);
 	}
 	return result;
 }

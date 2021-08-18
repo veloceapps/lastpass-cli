@@ -286,7 +286,7 @@ static void upload_queue_upload_all(const struct session *session, unsigned cons
 
 		http_failed_all = true;
 		backoff = 1;
-		for (int i = 0; i < 5; ++i) {
+		for (int i = 0; i < 10; ++i) {
 			if (i) {
 				lpass_log(LOG_DEBUG, "UQ: attempt %d, sleeping %d seconds\n", i+1, backoff);
 				sleep(backoff);
