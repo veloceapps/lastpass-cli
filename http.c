@@ -319,12 +319,9 @@ char *http_post_lastpass_v_noexit(const char *server, const char *page, const st
 	curl_easy_cleanup(curl);
 	*curl_ret = ret;
 
-	if (ret != CURLE_OK) {
-		result.len = 0;
-		free(result.ptr);
-		result.ptr = NULL;
-	} else if (!result.ptr)
+	if (!result.ptr)
 		result.ptr = xstrdup("");
+
 	if (final_len)
 		*final_len = result.len;
 
@@ -341,9 +338,13 @@ char *http_post_lastpass_v(const char *server, const char *page, const struct se
 	result = http_post_lastpass_v_noexit(server, page, session, final_len,
 					     argv, &ret, &http_code);
 
-	if (ret != CURLE_OK && ret != CURLE_ABORTED_BY_CALLBACK)
-		die("%s.", curl_easy_strerror(ret));
-
+	if (ret != CURLE_OK && ret != CURLE_ABORTED_BY_CALLBACK) {
+        fprintf(stderr, "HTTP_CODE=%ld\n", http_code);
+        if (result) {
+            fprintf(stderr, "RESPONSE_BODY=%s\n", result);
+        }
+        die("%s.", curl_easy_strerror(ret));
+	}
 	return result;
 }
 

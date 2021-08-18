@@ -299,6 +299,13 @@ static void upload_queue_upload_all(const struct session *session, unsigned cons
 				session, NULL, &argv[1],
 				&curl_ret, &http_code);
 
+            if (curl_ret != CURLE_OK) {
+                fprintf(stderr, "QUEUE_HTTP_CODE=%ld\n", http_code);
+                if (result) {
+                    fprintf(stderr,"QUEUE_RESPONSE_BODY=%s\n", result);
+                }
+	        }
+
 			http_failed_all &=
 				(curl_ret == HTTP_ERROR_CODE ||
 				 curl_ret == HTTP_ERROR_CONNECT);
@@ -315,10 +322,11 @@ static void upload_queue_upload_all(const struct session *session, unsigned cons
 			if (result && strlen(result))
 				should_fetch_new_blob_after = true;
 			free(result);
-			if (result)
+			result = NULL;
+			if (curl_ret == CURLE_OK)
 				break;
 		}
-		if (!result) {
+		if (curl_ret != CURLE_OK) {
 			lpass_log(LOG_DEBUG, "UQ: failed, http_failed_all: %d\n", http_failed_all);
 
 			/* server failed response 5 times, remove it */
